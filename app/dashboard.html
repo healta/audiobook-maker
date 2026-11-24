@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audiobooks</title>
+<style>
+:root { color-scheme: light dark }
+body { font: 15px/1.45 system-ui, sans-serif; max-width: 60rem; margin: 1.5rem auto; padding: 0 1rem }
+h1 { font-size: 1.4rem; margin: 0 } h2 { font-size: 1.05rem; margin: 1.8rem 0 .3rem }
+table { border-collapse: collapse; width: 100% }
+th, td { text-align: left; padding: .35rem .8rem .35rem 0; border-bottom: 1px solid #8884; vertical-align: top; overflow-wrap: anywhere }
+th { font-weight: 600; font-size: .85rem; opacity: .7 }
+td.n { white-space: nowrap; overflow-wrap: normal; font-variant-numeric: tabular-nums }
+progress { width: 7rem; vertical-align: middle; margin-right: .5rem }
+small, .none { opacity: .65 } #problem { color: #c33 }
+@media (max-width: 40rem) { .wide { display: none } progress { width: 4rem } }
+</style>
+<h1>Audiobooks</h1>
+<div id="problem" role="status"></div>
+
+<h2>In progress</h2>
+<table><thead><tr><th>Book<th class="wide">Voice<th class="wide">Step<th>Progress<th>Time left</thead><tbody id="current"></tbody></table>
+<h2>Queued <span id="queued"></span></h2>
+<table><thead><tr><th>#<th>File<th>Size</thead><tbody id="queue"></tbody></table>
+<h2>Completed <span id="total"></span></h2>
+<table><thead><tr><th>Book<th>Length<th class="wide">Voice<th>Finished</thead><tbody id="done"></tbody></table>
+<div id="failures" hidden>
+<h2>Could not be narrated</h2>
+<table><thead><tr><th>File<th>Reason<th class="wide">When</thead><tbody id="failed"></tbody></table>
+</div>
+<p><small id="foot"></small></p>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// every text goes in through textContent, so nothing inside a book's title can act as HTML
+function cell(value, cls) {
+  const td = document.createElement("td");
+  if (value instanceof Node) td.append(value); else td.textContent = value ?? "";
+  if (cls) td.className = cls;
+  return td;
+}
+function book(title, author) {
+  const f = document.createDocumentFragment(), b = document.createElement("div"), s = document.createElement("small");
+  b.textContent = title; s.textContent = author; f.append(b); if (author) f.append(s);
+  return f;
+}
+function fill(id, rows, columns, empty) {
+  const list = rows.map(cells => { const tr = document.createElement("tr"); tr.append(...cells); return tr; });
+  if (!list.length) { const td = cell(empty, "none"), tr = document.createElement("tr"); td.colSpan = columns; tr.append(td); list.push(tr); }
+  $(id).replaceChildren(...list);
+}
+function time(s) {
+  if (s == null) return "";
+  const m = Math.round(s / 60);
+  return m < 1 ? "under 1 min" : m < 60 ? m + " min" : Math.floor(m / 60) + " h " + m % 60 + " min";
+}
+const date = t => new Date(t * 1000).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+const size = b => b == null ? "" : b < 1e6 ? Math.max(1, Math.round(b / 1e3)) + " kB" : (b / 1e6).toFixed(1) + " MB";
+
+function show(d) {
+  const c = d.current;
+  let rows = [];
+  if (c) {
+    const bar = document.createElement("progress"), p = document.createDocumentFragment();
+    bar.max = 100; bar.value = c.percent; p.append(bar, Math.floor(c.percent) + "%");
+    const left = document.createDocumentFragment(), at = document.createElement("small");
+    left.append(c.left == null ? "" : time(c.left));
+    if (c.left >= 60) { at.textContent = "around " + new Date((d.time + c.left) * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); left.append(document.createElement("br"), at); }
+    const step = c.step + (c.device && c.speed ? ` on ${c.device}, ${c.speed}x` : "");
+    rows = [[cell(book(c.title, c.author)), cell(c.voice, "wide"), cell(step, "wide"), cell(p, "n"), cell(left, "n")]];
+  }
+  fill("current", rows, 5, "Nothing right now. Put a book into the input folder.");
+  fill("queue", d.queue.map((q, i) => [cell(i + 1, "n"), cell(q.name + (q.resumes ? " (already started)" : "")), cell(size(q.size), "n")]), 3, "No books waiting.");
+  fill("done", d.done.map(b => [cell(book(b.title, b.author)), cell(b.length, "n"), cell(b.voice, "wide"), cell(date(b.when), "n")]), 4, "No finished books yet.");
+  fill("failed", d.failed.map(f => [cell(f.name), cell(f.why), cell(date(f.when), "n wide")]), 3, "");
+  $("failures").hidden = !d.failed.length;
+  $("queued").textContent = d.queue.length ? `(${d.queue.length})` : "";
+  $("total").textContent = d.done_total ? `(${d.done_total})` : "";
+  $("foot").textContent = `audiobook-maker ${d.version}. Updated ${new Date().toLocaleTimeString()}.`;
+  document.title = c ? `${Math.floor(c.percent)}% ${c.title}` : "Audiobooks";
+}
+
+async function refresh() {
+  if (document.hidden) return;
+  try {
+    const r = await fetch("status.json", { cache: "no-store", signal: AbortSignal.timeout(10000) });
+    if (!r.ok) throw 0;
+    show(await r.json()); $("problem").textContent = "";
+  } catch { $("problem").textContent = "No answer from the audiobook maker. Trying again."; }
+}
+refresh(); setInterval(refresh, 5000);
+document.addEventListener("visibilitychange", refresh);
+</script>
+</html>

@@ -1,0 +1,8 @@
+*
+!app
+!requirements.txt
+!requirements-nodeps.txt
+!fetch_models.py
+!models.sha256
+**/__pycache__
+**/*.pyc
