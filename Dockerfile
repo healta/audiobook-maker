@@ -6,7 +6,7 @@ FROM python:3.12-slim-bookworm@sha256:82836454a795d9d75549a9e157fd08dbac6c383292
 
 LABEL org.opencontainers.image.title="audiobook-maker" \
       org.opencontainers.image.description="Drop an English book into a folder, get a chaptered audiobook back" \
-      org.opencontainers.image.version="1.1.0"
+      org.opencontainers.image.version="1.1.1"
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ffmpeg tini \

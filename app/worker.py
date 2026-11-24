@@ -140,12 +140,14 @@ def run(folder, beat):
             beat(folder)
             if rc is not None and not data: break
             time.sleep(0.5)
-    child = None
+    child.stdout.close(); child = None
     st = read_json(os.path.join(folder, "job.json"))
     if stopping:
         st["attempts"] -= 1; write_json(os.path.join(folder, "job.json"), st); return False       # being stopped is not the book's fault
     if rc == 0 and st.get("stage") == "done": finish(folder, st); return True
-    why = open(err, encoding="utf-8").read() if os.path.exists(err) else f"the narration process ended unexpectedly (code {rc})" + (", probably out of memory" if rc in (-9, 137) else "")
+    why = f"the narration process ended unexpectedly (code {rc})" + (", probably out of memory" if rc in (-9, 137) else "")
+    if os.path.exists(err):
+        with open(err, encoding="utf-8") as f: why = f.read()
     if rc == 3: fail(folder, st, why); return True
     if rc == 4:                                     # full disk, missing permission: keep the book and wait
         st["attempts"] -= 1; write_json(os.path.join(folder, "job.json"), st)
