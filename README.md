@@ -38,9 +38,14 @@ TrueNAS 25.10 and newer ship an NVIDIA driver that no longer runs GTX 10-series 
 
 ## Updates
 
-Every change on the `main` branch is tested and published as `:latest` by GitHub. TrueNAS looks for new images once a day and then shows *Update* on the app; a click downloads the changed part (usually well under 1 MB) and restarts it. A book in progress carries on where it was.
+Every change to the program on the `main` branch is tested by GitHub: the unit tests, then a tiny book narrated with the new image. Only if that works is it published as `:latest`. TrueNAS looks for new images once a day and then shows *Update* on the app; a click downloads the changed part (usually well under 1 MB) and restarts it. A book in progress carries on where it was.
 
-To look right away: `sudo midclt call app.image.op.check_update`, then reload the Apps page. The daily check can be switched off under Apps > Configuration > Settings.
+| To... | do this |
+|---|---|
+| look for an update right away | `sudo midclt call app.image.op.check_update`, then reload the Apps page |
+| update without waiting for the button | `sudo midclt call -job app.pull_images audiobook-maker '{"redeploy": true}'` |
+| go back to an older version | in the app's YAML, put that version's tag in place of `latest`, for example `:sha-1234567`; the tags are listed under *Packages* on GitHub |
+| stop the daily check | Apps > Configuration > Settings |
 
 To build the image yourself instead: `docker build -t audiobook-maker .`, and use `image: audiobook-maker` with `pull_policy: never` in `compose.yaml`.
 
@@ -76,7 +81,7 @@ MOBI, AZW3 and PDF are not supported: convert them to EPUB first (Calibre does t
 ## Development
 
 `python -m unittest discover -s tests` runs the text tests (needs `lxml`, `PyYAML` and `numpy` only).
-`.github/workflows/publish.yml` tests, builds and publishes the image on every push to `main`. Keep the base image's digest, the requirements and the models as they are unless you mean to change them: everything below them in the `Dockerfile` is a small layer, everything above is several gigabytes.
+`bash tests/smoke.sh IMAGE` narrates a tiny book with a built image. `.github/workflows/publish.yml` does both and publishes the image, on every push to `main` that changes the program. Keep the base image's digest, the requirements and the models as they are unless you mean to change them: everything below them in the `Dockerfile` is a small layer, everything above is several gigabytes.
 
 ## Licence
 
